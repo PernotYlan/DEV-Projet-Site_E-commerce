@@ -12,8 +12,8 @@ services:
       POSTGRES_DB: ${DB_NAME:-app_db}
     volumes:
       - db_data:/var/lib/postgresql/data
-      # Décommente pour lancer automatiquement tes scripts SQL au premier démarrage
-      # - ./backend/scripts/seed-catalogue.sql:/docker-entrypoint-initdb.d/seed-catalogue.sql
+      - ../Documents/sqlcyna.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./backend/scripts/seed-catalogue.sql:/docker-entrypoint-initdb.d/02-seed-catalogue.sql
     ports:
       - "5432:5432"   # optionnel : à retirer si tu ne veux pas exposer la DB en dehors du réseau Docker
     networks:
