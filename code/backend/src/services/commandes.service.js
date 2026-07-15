@@ -12,7 +12,7 @@ const TAUX_TVA = 20;
  * PaymentIntent Stripe et insère la commande (PAIEMENT_ATTENTE) avec ses lignes.
  * @param {string} userId - UUID de l'utilisateur
  * @param {{adresse_id: string, methode_paiement_id?: string, items: Array}} donnees
- * @returns {Promise<{commande_id: string, client_secret: string}>}
+ * @returns {Promise<{commande_id: string, client_secret: string, paiement_confirme: boolean}>}
  */
 async function creerCommande(userId, { adresse_id, methode_paiement_id, items }) {
   if (!Array.isArray(items) || items.length === 0) {
@@ -27,15 +27,17 @@ async function creerCommande(userId, { adresse_id, methode_paiement_id, items })
   const adresse = adresseRes.rows[0];
   if (!adresse) throw httpError(404, 'Adresse de facturation introuvable');
 
-  // Carte (4 derniers chiffres pour le snapshot) si fournie
+  // Carte enregistrée choisie (4 derniers chiffres pour le snapshot + id Stripe pour payer directement)
   let carteDerniers = null;
+  let stripePaymentMethodId = null;
   if (methode_paiement_id) {
     const carteRes = await db.query(
-      'SELECT derniers_quatre_chiffres FROM Methodes_Paiement WHERE id = $1 AND utilisateur_id = $2',
+      'SELECT derniers_quatre_chiffres, stripe_payment_method_id FROM Methodes_Paiement WHERE id = $1 AND utilisateur_id = $2',
       [methode_paiement_id, userId]
     );
     if (carteRes.rowCount === 0) throw httpError(404, 'Moyen de paiement introuvable');
     carteDerniers = carteRes.rows[0].derniers_quatre_chiffres;
+    stripePaymentMethodId = carteRes.rows[0].stripe_payment_method_id;
   }
 
   // Construit les lignes à partir des prix réels en BDD (jamais ceux du client)
@@ -72,7 +74,13 @@ async function creerCommande(userId, { adresse_id, methode_paiement_id, items })
   totalHt = Math.round(totalHt * 100) / 100;
   const totalTtc = Math.round(totalHt * (1 + TAUX_TVA / 100) * 100) / 100;
 
-  // PaymentIntent Stripe (montant en centimes)
+  // PaymentIntent Stripe (montant en centimes). Si une carte enregistrée est
+  // choisie, on l'attache dès maintenant mais on ne confirme PAS encore le
+  // paiement : la confirmation (qui déclenche le webhook Stripe) doit avoir
+  // lieu APRÈS que la commande soit committée en base, sinon le webhook
+  // payment_intent.succeeded peut arriver avant que la ligne Commandes
+  // n'existe (race condition observée en prod : commande restée
+  // PAIEMENT_ATTENTE malgré un paiement réussi côté Stripe).
   const stripe = getStripe();
   const customerId = await assurerClientStripe(userId);
   const paymentIntent = await stripe.paymentIntents.create({
@@ -81,6 +89,7 @@ async function creerCommande(userId, { adresse_id, methode_paiement_id, items })
     customer: customerId,
     payment_method_types: ['card'],
     metadata: { utilisateur_id: userId },
+    ...(stripePaymentMethodId && { payment_method: stripePaymentMethodId }),
   });
 
   // Insertion transactionnelle de la commande + lignes
@@ -130,7 +139,29 @@ async function creerCommande(userId, { adresse_id, methode_paiement_id, items })
     await stripe.paymentIntents.update(paymentIntent.id, { metadata: { commande_id: commandeId, utilisateur_id: userId } });
 
     await client.query('COMMIT');
-    return { commande_id: commandeId, client_secret: paymentIntent.client_secret };
+
+    // La commande est maintenant committée : on peut confirmer le paiement
+    // sans risquer que le webhook Stripe arrive avant que la ligne existe.
+    let paiementConfirme = false;
+    let clientSecret = paymentIntent.client_secret;
+    if (stripePaymentMethodId) {
+      try {
+        const confirme = await stripe.paymentIntents.confirm(paymentIntent.id);
+        clientSecret = confirme.client_secret;
+        paiementConfirme = confirme.status === 'succeeded';
+      } catch (err) {
+        // Carte refusée, 3D Secure requis, etc. : la commande reste
+        // PAIEMENT_ATTENTE, le webhook payment_intent.payment_failed (ou
+        // une nouvelle tentative côté client) prendra le relais.
+        console.error('Confirmation du paiement échouée :', err.message);
+      }
+    }
+
+    return {
+      commande_id: commandeId,
+      client_secret: clientSecret,
+      paiement_confirme: paiementConfirme,
+    };
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;

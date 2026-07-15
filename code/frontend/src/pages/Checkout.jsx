@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useStripe } from '@stripe/react-stripe-js';
 import { api, MOCK } from '../api';
 import { useCart } from '../context/CartContext';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Spinner from '../components/ui/Spinner';
-import PaiementStripe from '../components/checkout/PaiementStripe';
 import { euros } from '../components/ui/ProductCard';
 
 /** Formulaire vierge pour une nouvelle adresse. */
@@ -16,11 +16,13 @@ const ADRESSE_VIDE = {
 
 /**
  * Checkout en 3 étapes : adresse de facturation → paiement → récapitulatif.
- * Mode API réelle : le paiement est confirmé via Stripe (CardElement +
- * confirmCardPayment). Mode démo : le paiement est simulé.
+ * Mode API réelle : la carte enregistrée choisie à l'étape 2 est débitée
+ * directement côté serveur (le client n'a rien à ressaisir). Mode démo :
+ * le paiement est simulé.
  */
 export default function Checkout() {
   const navigate = useNavigate();
+  const stripe = useStripe(); // null en mode démo (pas de <Elements>)
   const { items, totalHt, tva, totalTtc, clearCart } = useCart();
 
   const [etape, setEtape] = useState(1);
@@ -92,6 +94,32 @@ export default function Checkout() {
     setErreur('');
     try {
       const { commande_id } = await api.creerCommande(construireCommande());
+      onSucces(commande_id);
+    } catch (err) {
+      setErreur(err.response?.data?.error || 'Le paiement a échoué. Veuillez réessayer.');
+      setEnCours(false);
+    }
+  }
+
+  /**
+   * Confirme l'achat avec la carte enregistrée sélectionnée à l'étape 2 :
+   * le serveur règle directement la commande avec cette carte, sans qu'il
+   * soit nécessaire de ressaisir un numéro de carte.
+   */
+  async function confirmerAchatReel() {
+    setEnCours(true);
+    setErreur('');
+    try {
+      const { commande_id, client_secret, paiement_confirme } = await api.creerCommande(construireCommande());
+      if (!paiement_confirme && stripe) {
+        // Cas rare : une authentification supplémentaire (3D Secure) est demandée par la banque
+        const { error, paymentIntent } = await stripe.confirmCardPayment(client_secret);
+        if (error || paymentIntent?.status !== 'succeeded') {
+          setErreur(error?.message || 'Le paiement n’a pas pu être confirmé.');
+          setEnCours(false);
+          return;
+        }
+      }
       onSucces(commande_id);
     } catch (err) {
       setErreur(err.response?.data?.error || 'Le paiement a échoué. Veuillez réessayer.');
@@ -198,14 +226,19 @@ export default function Checkout() {
               {carte.est_defaut && <span className="badge badge-rose" style={{ marginLeft: 8 }}>Par défaut</span>}
             </button>
           ))}
+          {cartes.length === 0 && (
+            <p style={{ color: 'var(--gris)' }}>
+              Aucune carte enregistrée. Ajoutez-en une depuis « Mon compte → Paiements » avant de continuer.
+            </p>
+          )}
           <p className="message-info">
             {MOCK
               ? 'Mode démo : sélectionnez une carte enregistrée (le paiement est simulé).'
-              : 'Vous saisirez votre carte bancaire de façon sécurisée (Stripe) à l’étape suivante.'}
+              : 'La carte sélectionnée sera débitée directement, de façon sécurisée (Stripe).'}
           </p>
           <div className="modal-actions">
             <Button variante="contour" onClick={() => setEtape(1)}>Retour</Button>
-            <Button variante="rose" disabled={MOCK && !carteChoisie} onClick={() => setEtape(3)}>Continuer</Button>
+            <Button variante="rose" disabled={!carteChoisie} onClick={() => setEtape(3)}>Continuer</Button>
           </div>
         </div>
       )}
@@ -231,29 +264,19 @@ export default function Checkout() {
             {adresseChoisie.prenom} {adresseChoisie.nom} — {adresseChoisie.adresse_ligne1},{' '}
             {adresseChoisie.code_postal} {adresseChoisie.ville}, {adresseChoisie.pays}
             {adresseChoisie.telephone && <> — 📞 {adresseChoisie.telephone}</>}
-            {MOCK && carteChoisie && (
+            {carteChoisie && (
               <>
                 <br />💳 Carte se terminant par {carteChoisie.derniers_quatre_chiffres}
               </>
             )}
           </p>
 
-          {/* Paiement : Stripe en mode réel, simulé en mode démo */}
-          {MOCK ? (
-            <div className="modal-actions">
-              <Button variante="contour" onClick={() => setEtape(2)} disabled={enCours}>Retour</Button>
-              <Button variante="rose" onClick={confirmerAchatMock} disabled={enCours}>
-                {enCours ? 'Paiement en cours…' : 'Confirmer l’achat'}
-              </Button>
-            </div>
-          ) : (
-            <PaiementStripe
-              construireCommande={construireCommande}
-              titulaire={`${adresseChoisie.prenom} ${adresseChoisie.nom}`}
-              onSucces={onSucces}
-              onRetour={() => setEtape(2)}
-            />
-          )}
+          <div className="modal-actions">
+            <Button variante="contour" onClick={() => setEtape(2)} disabled={enCours}>Retour</Button>
+            <Button variante="rose" onClick={MOCK ? confirmerAchatMock : confirmerAchatReel} disabled={enCours}>
+              {enCours ? 'Paiement en cours…' : 'Confirmer l’achat'}
+            </Button>
+          </div>
         </div>
       )}
     </div>
