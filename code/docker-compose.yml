@@ -14,7 +14,7 @@ services:
       - ./backend/scripts/seed-catalogue.sql:/docker-entrypoint-initdb.d/02-seed-catalogue.sql
       - ./backend/scripts/migration-stripe-customer.sql:/docker-entrypoint-initdb.d/03-migration-stripe.sql
     ports:
-      - "5432:5432"   # optionnel : à retirer si tu ne veux pas exposer la DB en dehors du réseau Docker
+      - "5432:5432"
     networks:
       - app_network
       - monitoring_net

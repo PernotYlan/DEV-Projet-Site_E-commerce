@@ -15,7 +15,7 @@ import ForgotPassword from '../pages/ForgotPassword';
 import ResetPassword from '../pages/ResetPassword';
 import ConfirmEmail from '../pages/ConfirmEmail';
 import Contact from '../pages/Contact';
-import { MentionsLegales, CGU } from '../pages/PageStatique';
+import { MentionsLegales, CGU, PolitiqueConfidentialite } from '../pages/PageStatique';
 
 // Pages privées
 import Checkout from '../pages/Checkout';
@@ -73,6 +73,7 @@ export default function AppRouter() {
         <Route path="/contact" element={<Contact />} />
         <Route path="/mentions-legales" element={<MentionsLegales />} />
         <Route path="/cgu" element={<CGU />} />
+        <Route path="/politique-confidentialite" element={<PolitiqueConfidentialite />} />
 
         {/* Routes privées */}
         <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />

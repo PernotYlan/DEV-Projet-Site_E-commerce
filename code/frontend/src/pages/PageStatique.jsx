@@ -40,3 +40,31 @@ export function CGU() {
     </div>
   );
 }
+
+/** Politique de confidentialité conforme aux exigences RGPD. */
+export function PolitiqueConfidentialite() {
+  return (
+    <div className="conteneur" style={{ maxWidth: 760 }}>
+      <div className="carte-bloc" style={{ marginTop: 30 }}>
+        <h2>Politique de confidentialité</h2>
+        <p>
+          CYNA traite vos données personnelles pour fournir les services demandés, gérer votre compte,
+          sécuriser les paiements, prévenir la fraude et améliorer l’expérience utilisateur.
+        </p>
+        <p style={{ marginTop: 12 }}>
+          Les données collectées peuvent inclure votre prénom, nom, adresse e-mail, adresse de livraison ou de facturation,
+          informations de paiement via Stripe, et le contenu de vos messages de contact.
+        </p>
+        <p style={{ marginTop: 12 }}>
+          Nous n’utilisons des cookies que pour les besoins strictement nécessaires au fonctionnement du site,
+          ainsi que pour la personnalisation, l’analyse et l’amélioration de l’expérience, avec votre consentement.
+        </p>
+        <p style={{ marginTop: 12 }}>
+          Vous disposez d’un droit d’accès, de rectification, d’effacement, d’opposition, de limitation et de
+          portabilité de vos données. Pour les exercer, contactez-nous via la page Contact ou demandez la suppression
+          de votre compte depuis l’espace personnel.
+        </p>
+      </div>
+    </div>
+  );
+}
