@@ -14,6 +14,7 @@ const commandesRoutes = require('./routes/commandes.routes');
 const abonnementsRoutes = require('./routes/abonnements.routes');
 const contactRoutes = require('./routes/contact.routes');
 const adminRoutes = require('./routes/admin.routes');
+const chatbotRoutes = require('./routes/chatbot.routes');
 const { webhook } = require('./controllers/paiement.controller');
 
 const app = express();
@@ -59,6 +60,7 @@ app.use('/api/commandes', commandesRoutes);
 app.use('/api/abonnements', abonnementsRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/chatbot', chatbotRoutes);
 app.use('/api', catalogueRoutes); // /accueil, /categories, /produits...
 
 app.get('/health', (req, res) => res.status(200).json({ status: 'ok' }));
