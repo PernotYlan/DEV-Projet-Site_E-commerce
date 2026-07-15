@@ -34,7 +34,8 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-changeme}
       DB_NAME: ${DB_NAME:-app_db}
       PORT: 3000
-      NODE_ENV: production
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
     depends_on:
       - db
     ports:
@@ -42,6 +43,7 @@ services:
     networks:
       - app_network
       - monitoring_net
+    # Pas de "ports:" ici : le backend n'est joignable que via le proxy Nginx du frontend
 
   # --- Frontend React/Vite servi par Nginx (+ proxy API) ---
   frontend:
@@ -56,16 +58,18 @@ services:
     networks:
       - app_network
 
-  postgres-exporter:
-    image: prometheuscommunity/postgres-exporter:latest
+  stripe-cli:
+    image: stripe/stripe-cli:latest
     restart: unless-stopped
     environment:
-      DATA_SOURCE_NAME: postgresql://${DB_USER:-app_user}:${DB_PASSWORD:-changeme}@db:5432/${DB_NAME:-app_db}?sslmode=disable
+      STRIPE_API_KEY: ${STRIPE_SECRET_KEY}
     depends_on:
-      - db
-    ports:
-      - "9187:9187"
+      - backend
+    entrypoint: ["/bin/sh", "-c", "apk add --no-cache netcat-openbsd >/dev/null 2>&1 || true; /app/scripts/start-stripe-listener.sh"]
+    volumes:
+      - ./backend/scripts:/app/scripts:ro
     networks:
+      - app_network
       - monitoring_net
 
 networks:

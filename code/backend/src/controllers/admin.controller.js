@@ -21,6 +21,20 @@ const hList = (fn) => async (req, res, next) => {
   }
 };
 
+/** GET /api/admin/commandes/:id/facture — télécharge la facture PDF (accès admin). */
+async function telechargerFactureCommande(req, res, next) {
+  try {
+    const { buffer, numeroFacture } = await gestion.telechargerFacture(req.params.id);
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${numeroFacture}.pdf"`,
+    });
+    res.send(buffer);
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   // ----- Dashboard -----
   dashboard: h((req) => gestion.dashboardStats(req.query.periode)),
@@ -93,6 +107,7 @@ module.exports = {
   // ----- Commandes -----
   listerCommandes: hList((req) => gestion.listerCommandes(req.query)),
   getCommande: h((req) => gestion.getCommande(req.params.id)),
+  telechargerFactureCommande,
 
   // ----- Abonnements -----
   listerAbonnements: hList((req) => gestion.listerAbonnements(req.query)),

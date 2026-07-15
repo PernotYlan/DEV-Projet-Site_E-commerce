@@ -58,6 +58,7 @@ const realApi = {
   commandes: () => http.get('/commandes').then(data),
   commande: (id) => http.get(`/commandes/${id}`).then(data),
   creerCommande: (donnees) => http.post('/commandes', donnees).then(data),
+  telechargerFacture: (id) => http.get(`/commandes/${id}/facture`, { responseType: 'blob' }).then((r) => r.data),
 
   // Contact
   contact: (donnees) => http.post('/contact', donnees).then(data),
@@ -103,6 +104,8 @@ const realApi = {
     // Commandes
     commandes: (params) => http.get('/admin/commandes', { params }).then((r) => r.data),
     commande: (id) => http.get(`/admin/commandes/${id}`).then(data),
+    telechargerFacture: (id) =>
+      http.get(`/admin/commandes/${id}/facture`, { responseType: 'blob' }).then((r) => r.data),
 
     // Abonnements
     abonnements: (params) => http.get('/admin/abonnements', { params }).then((r) => r.data),

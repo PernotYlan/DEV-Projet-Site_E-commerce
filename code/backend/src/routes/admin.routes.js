@@ -69,6 +69,7 @@ router.delete('/utilisateurs/:id', validate([uuid()]), c.anonymiserUtilisateur);
 // ----- Commandes -----
 router.get('/commandes', c.listerCommandes);
 router.get('/commandes/:id', validate([uuid()]), c.getCommande);
+router.get('/commandes/:id/facture', validate([uuid()]), c.telechargerFactureCommande);
 
 // ----- Abonnements -----
 router.get('/abonnements', c.listerAbonnements);

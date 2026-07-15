@@ -34,4 +34,18 @@ async function detail(req, res, next) {
   }
 }
 
-module.exports = { creer, lister, detail };
+/** GET /api/commandes/:id/facture — télécharge la facture PDF. */
+async function facture(req, res, next) {
+  try {
+    const { buffer, numeroFacture } = await commandesService.telechargerFacture(req.user.id, req.params.id);
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${numeroFacture}.pdf"`,
+    });
+    res.send(buffer);
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { creer, lister, detail, facture };

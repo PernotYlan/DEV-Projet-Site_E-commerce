@@ -1,6 +1,7 @@
 const db = require('../config/db');
 const { httpError } = require('../middlewares/errorHandler');
 const { anonymiser } = require('./utilisateurs.service');
+const { genererFacturePdf } = require('./facture.service');
 
 /* ============================================================
    ADMIN — Dashboard + gestion clients
@@ -195,6 +196,22 @@ async function getCommande(id) {
   return commande;
 }
 
+/**
+ * Génère le PDF de la facture d'une commande (accès admin, aucune vérification de propriétaire).
+ * @param {string} commandeId - UUID de la commande
+ * @returns {Promise<{buffer: Buffer, numeroFacture: string}>}
+ */
+async function telechargerFacture(commandeId) {
+  const commande = await getCommande(commandeId);
+  if (!commande.facture) {
+    throw httpError(404, 'Aucune facture disponible pour cette commande (paiement non confirmé)');
+  }
+  commande.numero_facture = commande.facture.numero_facture;
+  const utilisateur = { nom: commande.nom, prenom: commande.prenom, email: commande.email };
+  const buffer = await genererFacturePdf(commande, utilisateur);
+  return { buffer, numeroFacture: commande.numero_facture };
+}
+
 // ---------- ABONNEMENTS ----------
 
 /** Liste paginée des abonnements avec filtre statut. */
@@ -303,7 +320,7 @@ async function changerStatutMessage(id, statut, adminId) {
 module.exports = {
   dashboardStats,
   listerUtilisateurs, getUtilisateur, modifierUtilisateur, anonymiserUtilisateur,
-  listerCommandes, getCommande,
+  listerCommandes, getCommande, telechargerFacture,
   listerAbonnements, getAbonnement, changerStatutAbonnement,
   listerMessages, getMessage, changerStatutMessage,
 };

@@ -22,5 +22,10 @@ router.post(
 
 router.get('/', commandesController.lister);
 router.get('/:id', validate([param('id').isUUID().withMessage('Identifiant invalide')]), commandesController.detail);
+router.get(
+  '/:id/facture',
+  validate([param('id').isUUID().withMessage('Identifiant invalide')]),
+  commandesController.facture
+);
 
 module.exports = router;
