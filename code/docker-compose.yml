@@ -14,9 +14,10 @@ services:
       - ./backend/scripts/seed-catalogue.sql:/docker-entrypoint-initdb.d/02-seed-catalogue.sql
       - ./backend/scripts/migration-stripe-customer.sql:/docker-entrypoint-initdb.d/03-migration-stripe.sql
     ports:
-      - "5432:5432"   # optionnel : à retirer si tu ne veux pas exposer la DB en dehors du réseau Docker
+      - "5432:5432"
     networks:
       - app_network
+      - monitoring_net
 
   # --- Backend Node/Express ---
   backend:
@@ -32,11 +33,15 @@ services:
       DB_USER: ${DB_USER:-app_user}
       DB_PASSWORD: ${DB_PASSWORD:-changeme}
       DB_NAME: ${DB_NAME:-app_db}
+      PORT: 3000
+      NODE_ENV: production
     depends_on:
       - db
+    ports:
+      - "9464:3000"
     networks:
       - app_network
-    # Pas de "ports:" ici : le backend n'est joignable que via le proxy Nginx du frontend
+      - monitoring_net
 
   # --- Frontend React/Vite servi par Nginx (+ proxy API) ---
   frontend:
@@ -51,9 +56,23 @@ services:
     networks:
       - app_network
 
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: postgresql://${DB_USER:-app_user}:${DB_PASSWORD:-changeme}@db:5432/${DB_NAME:-app_db}?sslmode=disable
+    depends_on:
+      - db
+    ports:
+      - "9187:9187"
+    networks:
+      - monitoring_net
+
 networks:
   app_network:
     driver: bridge
+  monitoring_net:
+    external: true
 
 volumes:
   db_data:

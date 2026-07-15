@@ -21,7 +21,9 @@
     "jsonwebtoken": "^9.0.3",
     "nodemailer": "^8.0.11",
     "pg": "^8.21.0",
-    "stripe": "^22.2.0"
+    "prom-client": "^15.1.0",
+    "stripe": "^22.2.0",
+    "winston": "^3.9.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

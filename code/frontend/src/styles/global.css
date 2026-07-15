@@ -51,6 +51,47 @@ main { min-height: 60vh; }
 
 .conteneur { width: 100%; max-width: 1180px; margin: 0 auto; padding: 0 16px; }
 
+.cookie-banner {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 80;
+  background: rgba(26, 34, 38, 0.96);
+  color: var(--blanc);
+  padding: 14px 16px;
+  box-shadow: var(--ombre-forte);
+}
+.cookie-banner--compact { padding: 10px 16px; }
+.cookie-banner__content {
+  max-width: 1180px;
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.cookie-banner p { font-size: 0.95rem; }
+.cookie-banner a { color: var(--rose); }
+.cookie-banner__actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.cookie-banner__actions--inline { margin-top: 10px; }
+.cookie-banner__prefs {
+  max-width: 1180px;
+  margin: 12px auto 0;
+  display: grid;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 12px;
+  border-radius: var(--rayon);
+}
+.cookie-banner__prefs label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.95rem;
+}
+
 /* ---------- Boutons ---------- */
 .btn {
   display: inline-flex;
