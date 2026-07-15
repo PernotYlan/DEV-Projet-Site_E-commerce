@@ -36,8 +36,11 @@ services:
       PORT: 3000
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+      OLLAMA_HOST: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:1b}
     depends_on:
       - db
+      - ollama
     ports:
       - "9464:3000"
     networks:
@@ -51,10 +54,32 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     restart: unless-stopped
+    environment:
+      VITE_API_URL: /api
     depends_on:
       - backend
     ports:
       - "80:80"
+    networks:
+      - app_network
+
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - app_network
+    command: serve
+
+  ollama-init:
+    image: curlimages/curl:8.8.0
+    depends_on:
+      - ollama
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c", "sleep 10 && curl -sS http://ollama:11434/api/tags >/dev/null || true; curl -sS -X POST http://ollama:11434/api/pull -H 'Content-Type: application/json' -d '{\"name\":\"${OLLAMA_MODEL:-llama3.2:1b}\"}' || true"]
     networks:
       - app_network
 
@@ -80,3 +105,4 @@ networks:
 
 volumes:
   db_data:
+  ollama_data:

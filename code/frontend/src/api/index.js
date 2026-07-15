@@ -62,7 +62,7 @@ const realApi = {
 
   // Contact
   contact: (donnees) => http.post('/contact', donnees).then(data),
-  chatbot: (donnees) => http.post('/contact/chatbot', donnees).then(data),
+  chatbot: (donnees) => http.post('/chatbot/chat', donnees).then(data),
 
   // Back-office (rôle ADMIN)
   admin: {
