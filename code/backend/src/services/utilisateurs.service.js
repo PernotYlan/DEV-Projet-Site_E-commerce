@@ -166,8 +166,8 @@ async function creerAdresse(userId, adresse) {
 
   const resultat = await db.query(
     `INSERT INTO Adresses (utilisateur_id, prenom, nom, adresse_ligne1, adresse_ligne2,
-                           ville, region, code_postal, pays, est_defaut)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+                           ville, region, code_postal, pays, telephone, est_defaut)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
     [
       userId,
       adresse.prenom,
@@ -178,6 +178,7 @@ async function creerAdresse(userId, adresse) {
       adresse.region || null,
       adresse.code_postal,
       adresse.pays,
+      adresse.telephone,
       estDefaut,
     ]
   );
@@ -194,8 +195,8 @@ async function modifierAdresse(userId, adresseId, adresse) {
   const resultat = await db.query(
     `UPDATE Adresses
      SET prenom = $1, nom = $2, adresse_ligne1 = $3, adresse_ligne2 = $4,
-         ville = $5, region = $6, code_postal = $7, pays = $8
-     WHERE id = $9 AND utilisateur_id = $10 RETURNING *`,
+         ville = $5, region = $6, code_postal = $7, pays = $8, telephone = $9
+     WHERE id = $10 AND utilisateur_id = $11 RETURNING *`,
     [
       adresse.prenom,
       adresse.nom,
@@ -205,6 +206,7 @@ async function modifierAdresse(userId, adresseId, adresse) {
       adresse.region || null,
       adresse.code_postal,
       adresse.pays,
+      adresse.telephone,
       adresseId,
       userId,
     ]

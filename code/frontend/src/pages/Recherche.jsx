@@ -51,6 +51,13 @@ export default function Recherche() {
       suivants.set(cle, valeur);
     }
     if (cle !== 'page') suivants.delete('page');
+    // Un clic sur un filtre à facette (catégorie, prix, abonnement, disponibilité)
+    // repart d'une recherche texte propre : sinon un mot-clé oublié dans la barre
+    // continue de filtrer en même temps (ex: "edr" + catégorie XDR → 0 résultat).
+    if (!['q', 'tri', 'page'].includes(cle)) {
+      suivants.delete('q');
+      setSaisie('');
+    }
     setParams(suivants);
   }
 
@@ -194,7 +201,7 @@ export default function Recherche() {
           ) : (
             <div className="grille-produits" style={{ gridTemplateColumns: undefined }}>
               {resultats.data.map((produit) => (
-                <ProductCard key={produit.id} produit={produit} />
+                <ProductCard key={produit.id} produit={produit} typeAbonnement={params.get('type_abonnement')} />
               ))}
             </div>
           )}
