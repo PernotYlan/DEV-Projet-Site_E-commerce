@@ -5,6 +5,8 @@ const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 const env = require('./config/env');
 const { errorHandler } = require('./middlewares/errorHandler');
+const { metricsMiddleware, register } = require('./monitoring/metrics');
+const { logHttp } = require('./monitoring/logger');
 const authRoutes = require('./routes/auth.routes');
 const utilisateursRoutes = require('./routes/utilisateurs.routes');
 const catalogueRoutes = require('./routes/catalogue.routes');
@@ -25,6 +27,8 @@ app.set('trust proxy', 1);
 app.use(helmet());
 app.use(cors({ origin: env.frontendUrl, credentials: true }));
 app.use(cookieParser());
+app.use(logHttp);
+app.use(metricsMiddleware);
 
 // Webhook Stripe : nécessite le corps BRUT pour vérifier la signature.
 // Monté AVANT express.json() pour ne pas que le corps soit déjà parsé.
@@ -42,6 +46,11 @@ app.use(
     message: { error: 'Trop de requêtes, réessayez plus tard' },
   })
 );
+
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', register.contentType);
+  res.end(await register.metrics());
+});
 
 // Routes de l'API
 app.use('/api/auth', authRoutes);

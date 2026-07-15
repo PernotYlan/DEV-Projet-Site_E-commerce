@@ -1,5 +1,6 @@
 const authService = require('../services/auth.service');
 const env = require('../config/env');
+const { setActiveSessions } = require('../monitoring/metrics');
 
 /** Options du cookie httpOnly qui transporte le refresh token. */
 const COOKIE_OPTIONS = {
@@ -40,6 +41,7 @@ async function login(req, res, next) {
       { email, mot_de_passe, se_souvenir: Boolean(se_souvenir) },
       meta
     );
+    setActiveSessions(1);
     res.cookie('refresh_token', refreshToken, COOKIE_OPTIONS);
     res.status(200).json({ data: { access_token: accessToken, user } });
   } catch (err) {
@@ -61,6 +63,7 @@ async function refresh(req, res, next) {
 async function logout(req, res, next) {
   try {
     await authService.logout(req.cookies.refresh_token);
+    setActiveSessions(0);
     res.clearCookie('refresh_token', { ...COOKIE_OPTIONS, maxAge: undefined });
     res.status(200).json({ data: { message: 'Déconnecté' } });
   } catch (err) {
