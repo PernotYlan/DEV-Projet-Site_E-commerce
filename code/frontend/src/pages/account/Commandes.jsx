@@ -4,6 +4,7 @@ import Spinner from '../../components/ui/Spinner';
 import Modal from '../../components/ui/Modal';
 import Button from '../../components/ui/Button';
 import { euros } from '../../components/ui/ProductCard';
+import { telechargerBlob, messageErreurBlob } from '../../lib/download';
 
 /** Badge selon le statut de commande. */
 const BADGES = {
@@ -17,10 +18,24 @@ export default function Commandes() {
   const [commandes, setCommandes] = useState(null);
   const [detail, setDetail] = useState(null);
   const [erreur, setErreur] = useState('');
+  const [telechargement, setTelechargement] = useState(false);
 
   useEffect(() => {
     api.commandes().then(setCommandes).catch(() => setErreur('Impossible de charger vos commandes.'));
   }, []);
+
+  /** Télécharge la facture PDF de la commande affichée en détail. */
+  async function telechargerFacture(commande) {
+    setTelechargement(true);
+    try {
+      const blob = await api.telechargerFacture(commande.id);
+      telechargerBlob(blob, `${commande.numero_facture || commande.id}.pdf`);
+    } catch (err) {
+      alert(await messageErreurBlob(err, 'Impossible de télécharger la facture.'));
+    } finally {
+      setTelechargement(false);
+    }
+  }
 
   if (!commandes) return <Spinner />;
 
@@ -89,9 +104,21 @@ export default function Commandes() {
               💳 Carte se terminant par {detail.carte_derniers_chiffres}
             </p>
           )}
-          <p className="message-info" style={{ marginTop: 14 }}>
-            📄 La facture PDF sera téléchargeable ici une fois la génération branchée au backend.
-          </p>
+          {detail.numero_facture ? (
+            <Button
+              petit
+              variante="contour"
+              style={{ marginTop: 14 }}
+              disabled={telechargement}
+              onClick={() => telechargerFacture(detail)}
+            >
+              📄 {telechargement ? 'Génération…' : `Télécharger la facture (${detail.numero_facture})`}
+            </Button>
+          ) : (
+            <p className="message-info" style={{ marginTop: 14 }}>
+              📄 La facture sera disponible dès que le paiement sera confirmé.
+            </p>
+          )}
         </Modal>
       )}
     </div>

@@ -2,6 +2,7 @@ const db = require('../config/db');
 const { getStripe } = require('../config/stripe');
 const { httpError } = require('../middlewares/errorHandler');
 const { assurerClientStripe } = require('./paiement.service');
+const { genererFacturePdf } = require('./facture.service');
 
 /** Taux de TVA appliqué (20%). */
 const TAUX_TVA = 20;
@@ -146,7 +147,12 @@ async function chargerLignes(commandeId) {
 
 /** Historique des commandes de l'utilisateur (récentes d'abord), avec lignes. */
 async function listerCommandes(userId) {
-  const res = await db.query('SELECT * FROM Commandes WHERE utilisateur_id = $1 ORDER BY cree_le DESC', [userId]);
+  const res = await db.query(
+    `SELECT c.*, f.numero_facture
+     FROM Commandes c LEFT JOIN Factures f ON f.commande_id = c.id
+     WHERE c.utilisateur_id = $1 ORDER BY c.cree_le DESC`,
+    [userId]
+  );
   const commandes = res.rows;
   for (const commande of commandes) {
     commande.lignes = await chargerLignes(commande.id);
@@ -156,11 +162,32 @@ async function listerCommandes(userId) {
 
 /** Détail d'une commande (vérifie l'appartenance à l'utilisateur). */
 async function getCommande(userId, commandeId) {
-  const res = await db.query('SELECT * FROM Commandes WHERE id = $1 AND utilisateur_id = $2', [commandeId, userId]);
+  const res = await db.query(
+    `SELECT c.*, f.numero_facture
+     FROM Commandes c LEFT JOIN Factures f ON f.commande_id = c.id
+     WHERE c.id = $1 AND c.utilisateur_id = $2`,
+    [commandeId, userId]
+  );
   const commande = res.rows[0];
   if (!commande) throw httpError(404, 'Commande introuvable');
   commande.lignes = await chargerLignes(commandeId);
   return commande;
 }
 
-module.exports = { creerCommande, listerCommandes, getCommande, TAUX_TVA };
+/**
+ * Génère le PDF de la facture d'une commande (vérifie l'appartenance).
+ * @param {string} userId - UUID de l'utilisateur
+ * @param {string} commandeId - UUID de la commande
+ * @returns {Promise<{buffer: Buffer, numeroFacture: string}>}
+ */
+async function telechargerFacture(userId, commandeId) {
+  const commande = await getCommande(userId, commandeId);
+  if (!commande.numero_facture) {
+    throw httpError(404, 'Aucune facture disponible pour cette commande (paiement non confirmé)');
+  }
+  const userRes = await db.query('SELECT nom, prenom, email FROM Utilisateurs WHERE id = $1', [userId]);
+  const buffer = await genererFacturePdf(commande, userRes.rows[0]);
+  return { buffer, numeroFacture: commande.numero_facture };
+}
+
+module.exports = { creerCommande, listerCommandes, getCommande, telechargerFacture, TAUX_TVA };

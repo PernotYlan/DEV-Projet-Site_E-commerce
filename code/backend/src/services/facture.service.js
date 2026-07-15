@@ -5,6 +5,18 @@ const ROSE = '#E49AB0';
 const NOIR = '#000000';
 const GRIS = '#6b7a82';
 const ARDOISE = '#5D737E';
+const VERT = '#2e7d32';
+
+/** Identité légale de CYNA (fictive, cf. cahier des charges). */
+const SIRET = '913 711 032 00015';
+// N° TVA intracommunautaire FR : clé = (12 + 3 × (SIREN mod 97)) mod 97, calculée sur le SIREN 913711032.
+const TVA_INTRACOM = 'FR20 913 711 032';
+
+/** Mention légale obligatoire sur toute facture B2B française (Code de commerce, art. L441-10). */
+const MENTION_PENALITES =
+  "Pas d'escompte pour paiement anticipé. En cas de retard de paiement (hors présent règlement comptant), "
+  + "une pénalité au taux de 3 fois le taux d'intérêt légal est exigible, ainsi qu'une indemnité "
+  + 'forfaitaire de recouvrement de 40 € (art. L441-10 du Code de commerce).';
 
 /** Formate un montant en euros (ex: "299,00 €"). */
 function euros(montant) {
@@ -30,29 +42,35 @@ function genererFacturePdf(commande, utilisateur) {
     doc.on('end', () => resolve(Buffer.concat(morceaux)));
     doc.on('error', reject);
 
-    // En-tête
+    // En-tête : identité légale du vendeur
     doc.fillColor(NOIR).fontSize(24).font('Helvetica-Bold').text('CYNA', 50, 50);
-    doc.fillColor(ARDOISE).fontSize(9).font('Helvetica').text('10 rue de Penthièvre, 75008 Paris — SIRET 913 711 032 00015', 50, 78);
+    doc.fillColor(ARDOISE).fontSize(8).font('Helvetica')
+      .text('10 rue de Penthièvre, 75008 Paris', 50, 78)
+      .text(`SIRET ${SIRET} — N° TVA intracom. ${TVA_INTRACOM}`, 50, 90);
 
-    doc.fillColor(ROSE).fontSize(18).font('Helvetica-Bold').text('FACTURE', 400, 50, { align: 'right' });
-    doc.fillColor(NOIR).fontSize(10).font('Helvetica').text(commande.numero_facture, 400, 74, { align: 'right' });
-    doc.fillColor(GRIS).fontSize(9).text(dateFr(commande.cree_le), 400, 88, { align: 'right' });
+    doc.fillColor(ROSE).fontSize(18).font('Helvetica-Bold').text('FACTURE', 380, 50, { width: 165, align: 'right' });
+    doc.fillColor(NOIR).fontSize(10).font('Helvetica').text(commande.numero_facture, 380, 74, { width: 165, align: 'right' });
+    doc.fillColor(GRIS).fontSize(9).text(`Date : ${dateFr(commande.cree_le)}`, 380, 88, { width: 165, align: 'right' });
 
-    doc.moveTo(50, 115).lineTo(545, 115).strokeColor('#e3e9e6').stroke();
+    // Cachet "payée" — la facture n'est générée qu'une fois le paiement Stripe confirmé
+    doc.fillColor(VERT).fontSize(9).font('Helvetica-Bold')
+      .text('FACTURE ACQUITTÉE', 380, 101, { width: 165, align: 'right' });
+
+    doc.moveTo(50, 120).lineTo(545, 120).strokeColor('#e3e9e6').stroke();
 
     // Adresse de facturation
     const adresse = commande.adresse_snapshot || {};
-    doc.fillColor(GRIS).fontSize(9).font('Helvetica-Bold').text('FACTURÉ À', 50, 135);
+    doc.fillColor(GRIS).fontSize(9).font('Helvetica-Bold').text('FACTURÉ À', 50, 138);
     doc.fillColor(NOIR).fontSize(10).font('Helvetica')
-      .text(`${adresse.prenom || utilisateur.prenom} ${adresse.nom || utilisateur.nom}`, 50, 150)
-      .text(adresse.adresse_ligne1 || '', 50, 165)
-      .text(adresse.adresse_ligne2 || '', 50, adresse.adresse_ligne2 ? 180 : 165)
-      .text(`${adresse.code_postal || ''} ${adresse.ville || ''}`, 50, adresse.adresse_ligne2 ? 195 : 180)
-      .text(adresse.pays || '', 50, adresse.adresse_ligne2 ? 210 : 195)
-      .text(utilisateur.email, 50, adresse.adresse_ligne2 ? 225 : 210);
+      .text(`${adresse.prenom || utilisateur.prenom} ${adresse.nom || utilisateur.nom}`, 50, 153)
+      .text(adresse.adresse_ligne1 || '', 50, 168)
+      .text(adresse.adresse_ligne2 || '', 50, adresse.adresse_ligne2 ? 183 : 168)
+      .text(`${adresse.code_postal || ''} ${adresse.ville || ''}`, 50, adresse.adresse_ligne2 ? 198 : 183)
+      .text(adresse.pays || '', 50, adresse.adresse_ligne2 ? 213 : 198)
+      .text(utilisateur.email, 50, adresse.adresse_ligne2 ? 228 : 213);
 
     // Tableau des lignes
-    let y = 260;
+    let y = 265;
     doc.fillColor('#ffffff').rect(50, y, 495, 24).fill(NOIR);
     doc.fillColor('#ffffff').fontSize(9).font('Helvetica-Bold')
       .text('SERVICE', 60, y + 7)
@@ -88,15 +106,18 @@ function genererFacturePdf(commande, utilisateur) {
 
     if (commande.carte_derniers_chiffres) {
       doc.fontSize(9).fillColor(GRIS).font('Helvetica')
-        .text(`Payé par carte se terminant par ${commande.carte_derniers_chiffres}`, 50, y + 10);
+        .text(`Payé comptant par carte bancaire se terminant par ${commande.carte_derniers_chiffres}`, 50, y + 8);
     }
 
-    // Pied de page
-    doc.fontSize(8).fillColor(GRIS).font('Helvetica')
-      .text('CYNA — Solutions SaaS de cybersécurité (SOC, EDR, XDR). TVA non applicable, art. 293 B du CGI le cas échéant.', 50, 760, {
-        width: 495,
-        align: 'center',
-      });
+    // Mentions légales obligatoires (bas de page, taille réduite)
+    doc.fontSize(7).fillColor(GRIS).font('Helvetica')
+      .text(MENTION_PENALITES, 50, 730, { width: 495, align: 'center' })
+      .text(
+        'CYNA — SAS au capital de 10 000 € — RCS Paris — Solutions SaaS de cybersécurité (SOC, EDR, XDR).',
+        50,
+        755,
+        { width: 495, align: 'center' }
+      );
 
     doc.end();
   });

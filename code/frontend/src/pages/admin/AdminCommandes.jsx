@@ -4,6 +4,7 @@ import Spinner from '../../components/ui/Spinner';
 import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
 import { euros } from '../../components/ui/ProductCard';
+import { telechargerBlob, messageErreurBlob } from '../../lib/download';
 
 const STATUTS = {
   PAIEMENT_ACCEPTE: ['badge-vert', 'Payée'],
@@ -17,8 +18,22 @@ export default function AdminCommandes() {
   const [filtres, setFiltres] = useState({ statut: '', date_min: '', date_max: '', page: 1 });
   const [detail, setDetail] = useState(null);
   const [erreur, setErreur] = useState('');
+  const [telechargement, setTelechargement] = useState(false);
 
   const set = (cle, valeur) => setFiltres((f) => ({ ...f, [cle]: valeur, page: cle === 'page' ? valeur : 1 }));
+
+  /** Télécharge la facture PDF de la commande affichée en détail. */
+  async function telechargerFacture(commande) {
+    setTelechargement(true);
+    try {
+      const blob = await api.admin.telechargerFacture(commande.id);
+      telechargerBlob(blob, `${commande.facture?.numero_facture || commande.id}.pdf`);
+    } catch (err) {
+      alert(await messageErreurBlob(err, 'Impossible de télécharger la facture.'));
+    } finally {
+      setTelechargement(false);
+    }
+  }
 
   useEffect(() => {
     setResultat(null);
@@ -85,7 +100,17 @@ export default function AdminCommandes() {
             <div key={l.id} className="recap-ligne"><span>{l.produit_nom} × {l.quantite}</span><span>{euros(l.prix_total_ht)}</span></div>
           ))}
           <div className="recap-ligne recap-total"><span>Total TTC</span><span>{euros(detail.total_ttc)}</span></div>
-          {detail.facture && <p style={{ marginTop: 10, fontSize: '0.9rem' }}>📄 Facture : <strong>{detail.facture.numero_facture}</strong></p>}
+          {detail.facture && (
+            <Button
+              petit
+              variante="contour"
+              style={{ marginTop: 10 }}
+              disabled={telechargement}
+              onClick={() => telechargerFacture(detail)}
+            >
+              📄 {telechargement ? 'Génération…' : `Télécharger la facture (${detail.facture.numero_facture})`}
+            </Button>
+          )}
           {detail.adresse_snapshot && (
             <p style={{ fontSize: '0.9rem', marginTop: 8 }}>
               {detail.adresse_snapshot.adresse_ligne1}, {detail.adresse_snapshot.code_postal} {detail.adresse_snapshot.ville}

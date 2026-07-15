@@ -345,6 +345,12 @@ export const mockApi = {
     return copie(etatCommandes.find((c) => c.id === id));
   },
 
+  /** GET /commandes/:id/facture — non disponible en mode démo (pas de génération PDF côté front). */
+  async telechargerFacture() {
+    await attendre(100);
+    throw new Error('Le téléchargement de facture nécessite le vrai backend (non disponible en mode démo).');
+  },
+
   /**
    * POST /commandes — simule le paiement : la commande est créée
    * et acceptée immédiatement, et les abonnements sont activés.
@@ -584,6 +590,10 @@ export const mockApi = {
       await attendre(100);
       const c = etatCommandes.find((x) => x.id === id);
       return { ...copie(c), email: 'demo@cyna-it.fr', nom: 'Dupont', prenom: 'Marie', facture: { numero_facture: 'FACT-2026-00001' } };
+    },
+    async telechargerFacture() {
+      await attendre(100);
+      throw new Error('Le téléchargement de facture nécessite le vrai backend (non disponible en mode démo).');
     },
 
     // Abonnements
