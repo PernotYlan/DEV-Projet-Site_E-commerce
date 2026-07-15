@@ -6,7 +6,9 @@ const env = require('./env');
  * sinon les fonctionnalités de paiement renverront une erreur explicite.
  */
 const stripe = env.stripeSecretKey && env.stripeSecretKey.startsWith('sk_')
-  ? new Stripe(env.stripeSecretKey)
+  ? new Stripe(env.stripeSecretKey, {
+      apiVersion: '2025-02-24.acacia',
+    })
   : null;
 
 /** Renvoie le client Stripe ou lève une erreur si non configuré. */

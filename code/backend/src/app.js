@@ -52,6 +52,8 @@ app.use('/api/contact', contactRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api', catalogueRoutes); // /accueil, /categories, /produits...
 
+app.get('/health', (req, res) => res.status(200).json({ status: 'ok' }));
+
 // 404 pour toute route inconnue
 app.use((req, res) => res.status(404).json({ error: 'Route introuvable' }));
 
