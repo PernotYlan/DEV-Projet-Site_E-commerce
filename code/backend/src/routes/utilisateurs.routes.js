@@ -27,6 +27,7 @@ const reglesAdresse = [
   body('region').optional({ values: 'falsy' }).trim(),
   body('code_postal').trim().notEmpty().withMessage('Le code postal est obligatoire'),
   body('pays').trim().notEmpty().withMessage('Le pays est obligatoire'),
+  body('telephone').trim().notEmpty().withMessage('Le téléphone est obligatoire'),
 ];
 
 /** Valide que :id est un UUID. */

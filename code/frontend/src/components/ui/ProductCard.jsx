@@ -6,21 +6,33 @@ export function euros(montant) {
   return Number(montant).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
 }
 
-/** Retourne le prix mensuel minimum d'un produit (ou le plus bas disponible). */
-export function prixMinimum(produit) {
+/** Libellé de période affiché à côté du prix, selon le type d'abonnement. */
+const PERIODES = { MENSUEL: '/mois', SEMESTRIEL: '/6 mois', ANNUEL: '/an' };
+
+/**
+ * Retourne le prix à afficher sur la carte : celui du type d'abonnement
+ * préféré s'il existe (ex: filtre "Semestriel" actif), sinon le mensuel,
+ * sinon le moins cher disponible.
+ */
+export function prixAffiche(produit, typePrefere) {
   if (!produit.prix || produit.prix.length === 0) return null;
-  const mensuel = produit.prix.find((p) => p.type_abonnement === 'MENSUEL');
-  return mensuel ? mensuel.montant : Math.min(...produit.prix.map((p) => p.montant));
+  const trouve = (type) => produit.prix.find((p) => p.type_abonnement === type);
+  return (
+    (typePrefere && trouve(typePrefere))
+    || trouve('MENSUEL')
+    || produit.prix.reduce((min, p) => (p.montant < min.montant ? p : min))
+  );
 }
 
 /**
  * Carte produit : visuel, nom, prix "à partir de", badges de disponibilité.
- * @param {{produit: object}} props
+ * @param {{produit: object, typeAbonnement?: string}} props - typeAbonnement :
+ *   type préféré pour l'affichage du prix (ex: filtre de recherche actif)
  */
-export default function ProductCard({ produit }) {
+export default function ProductCard({ produit, typeAbonnement }) {
   const indisponible = !produit.is_active;
   const enMaintenance = produit.en_maintenance;
-  const prix = prixMinimum(produit);
+  const prix = prixAffiche(produit, typeAbonnement);
 
   return (
     <Link to={`/produit/${produit.id}`} className={`carte-produit ${indisponible || enMaintenance ? 'indisponible' : ''}`}>
@@ -35,8 +47,8 @@ export default function ProductCard({ produit }) {
         {prix !== null && (
           <p className="carte-produit-prix">
             <span>à partir de </span>
-            {euros(prix)}
-            <span> /mois HT</span>
+            {euros(prix.montant)}
+            <span> {PERIODES[prix.type_abonnement] || '/mois'} HT</span>
           </p>
         )}
       </div>

@@ -78,6 +78,7 @@ CREATE TABLE Adresses (
     region              VARCHAR(100),
     code_postal         VARCHAR(20)  NOT NULL,
     pays                VARCHAR(100) NOT NULL,
+    telephone           VARCHAR(20)  NOT NULL, -- notifications liées aux services SaaS ou à la facturation
     est_defaut          BOOLEAN     NOT NULL DEFAULT FALSE,
     cree_le             TIMESTAMP   NOT NULL DEFAULT NOW(),
     modifie_le          TIMESTAMP   NOT NULL DEFAULT NOW()

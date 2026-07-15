@@ -7,7 +7,7 @@ import Modal from '../../components/ui/Modal';
 
 const ADRESSE_VIDE = {
   prenom: '', nom: '', adresse_ligne1: '', adresse_ligne2: '',
-  ville: '', region: '', code_postal: '', pays: 'France',
+  ville: '', region: '', code_postal: '', pays: 'France', telephone: '',
 };
 
 /** Carnet d'adresses : liste, ajout/modification (modale), suppression, défaut. */
@@ -70,6 +70,7 @@ export default function Adresses() {
             <span style={{ fontSize: '0.92rem', color: 'var(--gris)' }}>
               {adresse.adresse_ligne1}{adresse.adresse_ligne2 ? `, ${adresse.adresse_ligne2}` : ''} —{' '}
               {adresse.code_postal} {adresse.ville}, {adresse.pays}
+              {adresse.telephone && <> — 📞 {adresse.telephone}</>}
             </span>
           </div>
           <div className="liste-element-actions">
@@ -111,6 +112,8 @@ export default function Adresses() {
               <Input label="Pays" required value={enEdition.pays}
                 onChange={(e) => setEnEdition({ ...enEdition, pays: e.target.value })} />
             </div>
+            <Input label="Téléphone" type="tel" required value={enEdition.telephone || ''}
+              onChange={(e) => setEnEdition({ ...enEdition, telephone: e.target.value })} />
             <div className="modal-actions">
               <Button type="button" variante="contour" onClick={() => setEnEdition(null)}>Annuler</Button>
               <Button type="submit" variante="rose">Enregistrer</Button>

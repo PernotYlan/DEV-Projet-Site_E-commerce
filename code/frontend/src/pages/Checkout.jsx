@@ -11,7 +11,7 @@ import { euros } from '../components/ui/ProductCard';
 /** Formulaire vierge pour une nouvelle adresse. */
 const ADRESSE_VIDE = {
   prenom: '', nom: '', adresse_ligne1: '', adresse_ligne2: '',
-  ville: '', region: '', code_postal: '', pays: 'France',
+  ville: '', region: '', code_postal: '', pays: 'France', telephone: '',
 };
 
 /**
@@ -133,6 +133,7 @@ export default function Checkout() {
                   {adresse.adresse_ligne1}{adresse.adresse_ligne2 ? `, ${adresse.adresse_ligne2}` : ''}
                   <br />
                   {adresse.code_postal} {adresse.ville}, {adresse.pays}
+                  {adresse.telephone && <> — 📞 {adresse.telephone}</>}
                 </button>
               ))}
               {adresses.length === 0 && <p style={{ color: 'var(--gris)' }}>Aucune adresse enregistrée.</p>}
@@ -169,6 +170,8 @@ export default function Checkout() {
                 <Input label="Pays" required value={nouvelleAdresse.pays}
                   onChange={(e) => setNouvelleAdresse({ ...nouvelleAdresse, pays: e.target.value })} />
               </div>
+              <Input label="Téléphone" type="tel" required value={nouvelleAdresse.telephone}
+                onChange={(e) => setNouvelleAdresse({ ...nouvelleAdresse, telephone: e.target.value })} />
               <div className="modal-actions">
                 <Button type="button" variante="contour" onClick={() => setNouvelleAdresse(null)}>Annuler</Button>
                 <Button type="submit" variante="rose">Enregistrer</Button>
@@ -227,6 +230,7 @@ export default function Checkout() {
           <p style={{ fontSize: '0.93rem' }}>
             {adresseChoisie.prenom} {adresseChoisie.nom} — {adresseChoisie.adresse_ligne1},{' '}
             {adresseChoisie.code_postal} {adresseChoisie.ville}, {adresseChoisie.pays}
+            {adresseChoisie.telephone && <> — 📞 {adresseChoisie.telephone}</>}
             {MOCK && carteChoisie && (
               <>
                 <br />💳 Carte se terminant par {carteChoisie.derniers_quatre_chiffres}

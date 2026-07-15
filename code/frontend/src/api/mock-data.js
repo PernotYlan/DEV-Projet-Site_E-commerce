@@ -268,6 +268,7 @@ export const adressesDemo = [
     region: 'Île-de-France',
     code_postal: '75008',
     pays: 'France',
+    telephone: '06 12 34 56 78',
     est_defaut: true,
   },
 ];

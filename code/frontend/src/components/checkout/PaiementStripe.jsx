@@ -4,6 +4,7 @@ import { api } from '../../api';
 import Button from '../ui/Button';
 
 const STYLE_CARTE = {
+  hidePostalCode: true,
   style: {
     base: { fontSize: '16px', color: '#1a2226', fontFamily: 'Roboto, sans-serif', '::placeholder': { color: '#6b7a82' } },
     invalid: { color: '#c62828' },

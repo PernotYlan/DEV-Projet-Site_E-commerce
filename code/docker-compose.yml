@@ -13,6 +13,7 @@ services:
       - ../Documents/sqlcyna.sql:/docker-entrypoint-initdb.d/01-schema.sql
       - ./backend/scripts/seed-catalogue.sql:/docker-entrypoint-initdb.d/02-seed-catalogue.sql
       - ./backend/scripts/migration-stripe-customer.sql:/docker-entrypoint-initdb.d/03-migration-stripe.sql
+      - ./backend/scripts/migration-adresses-telephone.sql:/docker-entrypoint-initdb.d/04-migration-telephone.sql
     ports:
       - "5432:5432"
     networks:
