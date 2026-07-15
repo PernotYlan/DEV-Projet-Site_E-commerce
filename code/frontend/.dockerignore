@@ -1,0 +1,7 @@
+node_modules
+dist
+.env.example
+.git
+.gitignore
+dev.cmd
+DEMARRER-FRONTEND.cmd

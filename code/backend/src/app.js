@@ -16,6 +16,11 @@ const { webhook } = require('./controllers/paiement.controller');
 
 const app = express();
 
+// Derrière le reverse proxy nginx (conteneur frontend) : fait confiance au
+// 1er proxy pour lire la vraie IP client (X-Forwarded-For), nécessaire pour
+// que express-rate-limit fonctionne correctement en environnement Docker.
+app.set('trust proxy', 1);
+
 // Sécurité : en-têtes HTTP + CORS limité au front
 app.use(helmet());
 app.use(cors({ origin: env.frontendUrl, credentials: true }));

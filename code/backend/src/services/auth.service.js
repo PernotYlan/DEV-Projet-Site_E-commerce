@@ -64,7 +64,11 @@ async function register({ nom, prenom, email, mot_de_passe }) {
   );
 
   const token = await creerTokenEmail(resultat.rows[0].id, 'CONFIRMATION_INSCRIPTION');
-  await emailService.envoyerConfirmationInscription(email, token);
+  // L'échec d'envoi (SMTP down/mal configuré) ne doit pas faire échouer
+  // l'inscription : le compte existe déjà en base à ce stade.
+  await emailService.envoyerConfirmationInscription(email, token).catch((err) => {
+    console.error('Échec envoi email de confirmation inscription :', err.message);
+  });
 }
 
 /**
@@ -188,7 +192,9 @@ async function forgotPassword(email) {
     return; // réponse 200 dans tous les cas
   }
   const token = await creerTokenEmail(user.id, 'RESET_MOT_DE_PASSE');
-  await emailService.envoyerResetMotDePasse(email, token);
+  await emailService.envoyerResetMotDePasse(email, token).catch((err) => {
+    console.error('Échec envoi email de réinitialisation :', err.message);
+  });
 }
 
 /**
