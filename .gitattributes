@@ -1,0 +1,5 @@
+# Force les fins de ligne Unix (LF) pour les scripts shell, quelle que soit
+# la config Git de la machine (par défaut, Git convertit LF -> CRLF au
+# checkout sous Windows si core.autocrlf=true, ce qui casse le shebang
+# #!/bin/sh des scripts exécutés dans les conteneurs Docker Linux).
+*.sh text eol=lf
