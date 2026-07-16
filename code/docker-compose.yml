@@ -14,6 +14,7 @@ services:
       - ./backend/scripts/seed-catalogue.sql:/docker-entrypoint-initdb.d/02-seed-catalogue.sql
       - ./backend/scripts/migration-stripe-customer.sql:/docker-entrypoint-initdb.d/03-migration-stripe.sql
       - ./backend/scripts/migration-adresses-telephone.sql:/docker-entrypoint-initdb.d/04-migration-telephone.sql
+      - ./backend/scripts/migration-2fa-admin.sql:/docker-entrypoint-initdb.d/05-migration-2fa.sql
     ports:
       - "5432:5432"
     networks:

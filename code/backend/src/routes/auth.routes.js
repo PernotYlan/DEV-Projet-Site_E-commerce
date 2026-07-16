@@ -32,6 +32,15 @@ const loginLimiter = rateLimit({
   message: { error: 'Trop de tentatives de connexion, réessayez plus tard' },
 });
 
+/** Limite : 10 vérifications de code 2FA / 15 min / IP (anti brute-force sur le code à 6 chiffres). */
+const deuxFaLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de tentatives, réessayez plus tard' },
+});
+
 router.post(
   '/register',
   registerLimiter,
@@ -59,6 +68,16 @@ router.post(
     body('se_souvenir').optional().isBoolean().withMessage('se_souvenir doit être un booléen'),
   ]),
   authController.login
+);
+
+router.post(
+  '/verifier-2fa',
+  deuxFaLimiter,
+  validate([
+    body('pre_auth_token').notEmpty().withMessage('Session de connexion manquante'),
+    body('code').matches(/^\d{6}$/).withMessage('Le code doit contenir 6 chiffres'),
+  ]),
+  authController.verifier2FA
 );
 
 router.post('/refresh', authController.refresh);

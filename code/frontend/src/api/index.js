@@ -24,6 +24,8 @@ const realApi = {
   // Authentification
   login: (email, mot_de_passe, se_souvenir) =>
     http.post('/auth/login', { email, mot_de_passe, se_souvenir }).then(data),
+  verifier2FA: (pre_auth_token, code) =>
+    http.post('/auth/verifier-2fa', { pre_auth_token, code }).then(data),
   register: (donnees) => http.post('/auth/register', donnees).then(data),
   refresh: () => http.post('/auth/refresh').then(data),
   logout: () => http.post('/auth/logout').then(data),

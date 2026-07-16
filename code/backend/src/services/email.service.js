@@ -50,6 +50,17 @@ function envoyerResetMotDePasse(email, token) {
   );
 }
 
+/** Envoie le code de double authentification (2FA) à la connexion (valable 10 min). */
+function envoyerCode2FA(email, code) {
+  return envoyerEmail(
+    email,
+    `Votre code de connexion CYNA : ${code}`,
+    `<p>Voici votre code de connexion au back-office CYNA :</p>
+     <p style="font-size:28px;font-weight:bold;letter-spacing:6px;">${code}</p>
+     <p>Ce code est valable 10 minutes. Si vous n'êtes pas à l'origine de cette tentative de connexion, ignorez cet email et vérifiez la sécurité de votre compte.</p>`
+  );
+}
+
 /** Envoie le lien de confirmation de changement d'adresse email (valable 24h). */
 function envoyerConfirmationChangementEmail(email, token) {
   const lien = `${env.frontendUrl}/compte/profil?email_token=${token}`;
@@ -67,4 +78,5 @@ module.exports = {
   envoyerConfirmationInscription,
   envoyerResetMotDePasse,
   envoyerConfirmationChangementEmail,
+  envoyerCode2FA,
 };
