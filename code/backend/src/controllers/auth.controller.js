@@ -32,15 +32,36 @@ async function confirmEmail(req, res, next) {
   }
 }
 
-/** POST /api/auth/login — connexion, pose le cookie refresh et renvoie l'access token. */
+/**
+ * POST /api/auth/login — connexion.
+ * Compte CLIENT : pose le cookie refresh et renvoie l'access token.
+ * Compte ADMIN : n'émet aucun token, renvoie un pré-auth token en attendant
+ * le code 2FA (voir POST /api/auth/verifier-2fa).
+ */
 async function login(req, res, next) {
   try {
     const { email, mot_de_passe, se_souvenir } = req.body;
     const meta = { ip: req.ip, userAgent: req.headers['user-agent'] || '' };
-    const { accessToken, refreshToken, user } = await authService.login(
-      { email, mot_de_passe, se_souvenir: Boolean(se_souvenir) },
-      meta
-    );
+    const resultat = await authService.login({ email, mot_de_passe, se_souvenir: Boolean(se_souvenir) }, meta);
+
+    if (resultat.requiert2FA) {
+      return res.status(200).json({ data: { requiert_2fa: true, pre_auth_token: resultat.preAuthToken } });
+    }
+
+    setActiveSessions(1);
+    res.cookie('refresh_token', resultat.refreshToken, COOKIE_OPTIONS);
+    res.status(200).json({ data: { access_token: resultat.accessToken, user: resultat.user } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** POST /api/auth/verifier-2fa — vérifie le code reçu par email, pose le cookie refresh. */
+async function verifier2FA(req, res, next) {
+  try {
+    const { pre_auth_token, code } = req.body;
+    const meta = { ip: req.ip, userAgent: req.headers['user-agent'] || '' };
+    const { accessToken, refreshToken, user } = await authService.verifier2FA(pre_auth_token, code, meta);
     setActiveSessions(1);
     res.cookie('refresh_token', refreshToken, COOKIE_OPTIONS);
     res.status(200).json({ data: { access_token: accessToken, user } });
@@ -92,4 +113,4 @@ async function resetPassword(req, res, next) {
   }
 }
 
-module.exports = { register, confirmEmail, login, refresh, logout, forgotPassword, resetPassword };
+module.exports = { register, confirmEmail, login, verifier2FA, refresh, logout, forgotPassword, resetPassword };

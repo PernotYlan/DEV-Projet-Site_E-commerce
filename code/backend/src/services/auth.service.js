@@ -46,6 +46,80 @@ function genererRefreshToken(user) {
 }
 
 /**
+ * Génère un token intermédiaire (étape 1/2 de la connexion admin) : prouve
+ * que le mot de passe est correct, mais PAS encore que le code 2FA a été
+ * vérifié. Signé avec le secret du refresh token (différent de celui de
+ * l'access token) : verifyToken ne peut donc jamais l'accepter comme une
+ * vraie session, même s'il contient un id utilisateur valide.
+ */
+function genererPreAuthToken(user, seSouvenir) {
+  return jwt.sign({ id: user.id, etape: 'PRE_2FA', se_souvenir: Boolean(seSouvenir) }, env.jwtRefreshSecret, {
+    expiresIn: '10m',
+  });
+}
+
+/** Vérifie un pré-auth token 2FA et retourne son payload (lève si invalide/expiré). */
+function verifierPreAuthToken(token) {
+  let payload;
+  try {
+    payload = jwt.verify(token, env.jwtRefreshSecret);
+  } catch {
+    throw httpError(401, 'Session de connexion expirée, veuillez recommencer');
+  }
+  if (payload.etape !== 'PRE_2FA') {
+    throw httpError(401, 'Session de connexion invalide');
+  }
+  return payload;
+}
+
+/** Hash d'un code 2FA lié à un utilisateur (évite les collisions entre comptes sur un espace à 6 chiffres). */
+function hashCode2FA(code, utilisateurId) {
+  return sha256(`${code}:${utilisateurId}`);
+}
+
+/**
+ * Génère un code 2FA à 6 chiffres, stocke son hash (valable 10 min) et
+ * l'envoie par email. Retourne le code en clair pour l'email.
+ */
+async function creerCode2FA(utilisateurId, email) {
+  const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+  await db.query(
+    `INSERT INTO Tokens_Email (utilisateur_id, token_hash, type, expire_le)
+     VALUES ($1, $2, 'CODE_2FA_LOGIN', NOW() + INTERVAL '10 minutes')`,
+    [utilisateurId, hashCode2FA(code, utilisateurId)]
+  );
+  await emailService.envoyerCode2FA(email, code).catch((err) => {
+    console.error('Échec envoi email code 2FA :', err.message);
+  });
+}
+
+/** Construit les tokens de session + la session BDD éventuelle ("se souvenir de moi"). */
+async function emettreSession(user, seSouvenir, meta) {
+  const accessToken = genererAccessToken(user);
+  const refreshToken = genererRefreshToken(user);
+
+  if (seSouvenir) {
+    await db.query(
+      `INSERT INTO Sessions (utilisateur_id, token_hash, expire_le, ip_address, user_agent)
+       VALUES ($1, $2, NOW() + INTERVAL '7 days', $3, $4)`,
+      [user.id, sha256(refreshToken), meta.ip, meta.userAgent]
+    );
+  }
+
+  return {
+    accessToken,
+    refreshToken,
+    user: {
+      id: user.id,
+      nom: user.nom,
+      prenom: user.prenom,
+      email: user.email,
+      role: user.role,
+    },
+  };
+}
+
+/**
  * Inscrit un nouvel utilisateur (email_verifie = false) et envoie
  * l'email de confirmation d'inscription.
  * @param {{nom: string, prenom: string, email: string, mot_de_passe: string}} donnees
@@ -92,11 +166,13 @@ async function confirmEmail(token) {
 }
 
 /**
- * Authentifie un utilisateur et génère les tokens.
- * Si se_souvenir = true, le hash du refresh token est stocké dans Sessions.
+ * Authentifie un utilisateur (étape mot de passe).
+ * - Compte CLIENT : connexion immédiate, retourne les tokens.
+ * - Compte ADMIN : mot de passe validé mais tokens PAS encore émis — un code
+ *   à 6 chiffres est envoyé par email, à vérifier via verifier2FA().
  * @param {{email: string, mot_de_passe: string, se_souvenir?: boolean}} donnees
  * @param {{ip: string, userAgent: string}} meta - Infos de la requête
- * @returns {Promise<{accessToken: string, refreshToken: string, user: object}>}
+ * @returns {Promise<{requiert2FA: true, preAuthToken: string} | {accessToken: string, refreshToken: string, user: object}>}
  */
 async function login({ email, mot_de_passe, se_souvenir }, meta) {
   const resultat = await db.query('SELECT * FROM Utilisateurs WHERE email = $1', [email]);
@@ -111,28 +187,42 @@ async function login({ email, mot_de_passe, se_souvenir }, meta) {
     throw httpError(403, 'Veuillez confirmer votre email avant de vous connecter');
   }
 
-  const accessToken = genererAccessToken(user);
-  const refreshToken = genererRefreshToken(user);
-
-  if (se_souvenir) {
-    await db.query(
-      `INSERT INTO Sessions (utilisateur_id, token_hash, expire_le, ip_address, user_agent)
-       VALUES ($1, $2, NOW() + INTERVAL '7 days', $3, $4)`,
-      [user.id, sha256(refreshToken), meta.ip, meta.userAgent]
-    );
+  if (user.role === 'ADMIN') {
+    await creerCode2FA(user.id, user.email);
+    return { requiert2FA: true, preAuthToken: genererPreAuthToken(user, se_souvenir) };
   }
 
-  return {
-    accessToken,
-    refreshToken,
-    user: {
-      id: user.id,
-      nom: user.nom,
-      prenom: user.prenom,
-      email: user.email,
-      role: user.role,
-    },
-  };
+  return emettreSession(user, se_souvenir, meta);
+}
+
+/**
+ * Vérifie le code 2FA (étape 2/2 de la connexion admin) et émet les tokens.
+ * @param {string} preAuthToken - Token émis par login() à l'étape mot de passe
+ * @param {string} code - Code à 6 chiffres reçu par email
+ * @param {{ip: string, userAgent: string}} meta - Infos de la requête
+ * @returns {Promise<{accessToken: string, refreshToken: string, user: object}>}
+ */
+async function verifier2FA(preAuthToken, code, meta) {
+  const payload = verifierPreAuthToken(preAuthToken);
+
+  const resultat = await db.query('SELECT * FROM Utilisateurs WHERE id = $1', [payload.id]);
+  const user = resultat.rows[0];
+  if (!user || user.role !== 'ADMIN') {
+    throw httpError(401, 'Session de connexion invalide');
+  }
+
+  const tokenRes = await db.query(
+    `SELECT id FROM Tokens_Email
+     WHERE utilisateur_id = $1 AND type = 'CODE_2FA_LOGIN'
+       AND utilise = FALSE AND expire_le > NOW() AND token_hash = $2`,
+    [user.id, hashCode2FA(code, user.id)]
+  );
+  if (tokenRes.rowCount === 0) {
+    throw httpError(401, 'Code invalide ou expiré');
+  }
+  await db.query('UPDATE Tokens_Email SET utilise = TRUE WHERE id = $1', [tokenRes.rows[0].id]);
+
+  return emettreSession(user, payload.se_souvenir, meta);
 }
 
 /**
@@ -223,6 +313,7 @@ module.exports = {
   register,
   confirmEmail,
   login,
+  verifier2FA,
   refresh,
   logout,
   forgotPassword,

@@ -29,9 +29,24 @@ export function AuthProvider({ children }) {
       .finally(() => setIsLoading(false));
   }, []);
 
-  /** Connecte l'utilisateur et mémorise le token. */
+  /**
+   * Connecte l'utilisateur (étape mot de passe).
+   * Comptes ADMIN : ne mémorise rien, renvoie { requiert2FA: true, preAuthToken }
+   * pour que l'appelant affiche l'écran de saisie du code puis appelle verifier2FA().
+   */
   async function login(email, motDePasse, seSouvenir) {
-    const { access_token, user: utilisateur } = await api.login(email, motDePasse, seSouvenir);
+    const resultat = await api.login(email, motDePasse, seSouvenir);
+    if (resultat.requiert_2fa) {
+      return { requiert2FA: true, preAuthToken: resultat.pre_auth_token };
+    }
+    setAccessToken(resultat.access_token);
+    setUser(resultat.user);
+    return { requiert2FA: false, user: resultat.user };
+  }
+
+  /** Termine la connexion admin : vérifie le code 2FA reçu par email et mémorise le token. */
+  async function verifier2FA(preAuthToken, code) {
+    const { access_token, user: utilisateur } = await api.verifier2FA(preAuthToken, code);
     setAccessToken(access_token);
     setUser(utilisateur);
     return utilisateur;
@@ -58,7 +73,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, register, rafraichirUser }}>
+    <AuthContext.Provider value={{ user, isLoading, login, verifier2FA, logout, register, rafraichirUser }}>
       {children}
     </AuthContext.Provider>
   );
