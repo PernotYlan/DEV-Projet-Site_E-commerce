@@ -424,10 +424,22 @@ export const mockApi = {
         label: c.nom,
         total: [2870, 1240, 4790][i % 3],
       }));
+      const noms = adminCategories.map((c) => c.nom);
+      const paniers_par_categorie = {
+        categories: noms,
+        data: ventes.map((v, i) => {
+          const ligne = { label: v.label };
+          noms.forEach((nom, ci) => {
+            ligne[nom] = Math.round((base[(i + ci * 3) % base.length] || 0) * 0.35);
+          });
+          return ligne;
+        }),
+      };
       return {
         periode,
         ventes,
         ventes_par_categorie,
+        paniers_par_categorie,
         kpi: {
           abonnements_actifs: etatAbonnements.filter((a) => a.statut === 'ACTIF').length,
           nouveaux_utilisateurs_7j: 2,
@@ -449,12 +461,21 @@ export const mockApi = {
       if (params.search) liste = liste.filter((p) => p.nom.toLowerCase().includes(params.search.toLowerCase()));
       if (params.categorie_id) liste = liste.filter((p) => p.categorie_id === Number(params.categorie_id));
       if (params.is_active === 'true' || params.is_active === 'false') liste = liste.filter((p) => p.is_active === (params.is_active === 'true'));
-      return paginer(liste.sort((a, b) => (b.priorite || 0) - (a.priorite || 0)), params);
+      const CLES_TRI = { nom: 'nom', priorite: 'priorite', is_active: 'is_active', categorie: 'categorie_nom', prix: 'prix_min' };
+      const cle = CLES_TRI[params.sort] || 'priorite';
+      const sens = params.order === 'asc' ? 1 : -1;
+      liste.sort((a, b) => {
+        const av = a[cle], bv = b[cle];
+        if (av == null) return 1;
+        if (bv == null) return -1;
+        return av > bv ? sens : av < bv ? -sens : 0;
+      });
+      return paginer(liste, params);
     },
     async produit(id) {
       await attendre(100);
       const p = adminProduits.find((x) => x.id === Number(id));
-      return { ...copie(p), images: [] };
+      return { ...copie(p), categorie_nom: nomCategorie(p.categorie_id), images: [] };
     },
     async creerProduit(b) {
       await attendre();
@@ -472,6 +493,12 @@ export const mockApi = {
       await attendre();
       adminProduits = adminProduits.filter((x) => x.id !== Number(id));
       return { message: 'Produit supprimé' };
+    },
+    async supprimerProduits(ids) {
+      await attendre();
+      const idsNum = ids.map(Number);
+      adminProduits = adminProduits.filter((x) => !idsNum.includes(x.id));
+      return { supprimes: idsNum, echecs: [] };
     },
     async ajouterPrix(id, b) {
       await attendre();

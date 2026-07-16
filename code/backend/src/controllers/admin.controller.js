@@ -48,6 +48,7 @@ module.exports = {
     await cat.supprimerProduit(req.params.id);
     return { message: 'Produit supprimé' };
   }),
+  supprimerProduits: h((req) => cat.supprimerProduits(req.body.ids)),
   ajouterImage: h((req) => cat.ajouterImage(req.params.id, req.body), 201),
   supprimerImage: h(async (req) => {
     await cat.supprimerImage(req.params.id, req.params.imageId);

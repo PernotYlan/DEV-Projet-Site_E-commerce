@@ -208,7 +208,7 @@ main { min-height: 60vh; }
 /* ---------- Formulaires ---------- */
 .champ { margin-bottom: 16px; }
 .champ label { display: block; font-weight: 500; margin-bottom: 6px; font-size: 0.92rem; }
-.champ input, .champ select, .champ textarea {
+.champ input:not([type="checkbox"]):not([type="radio"]), .champ select, .champ textarea {
   width: 100%;
   padding: 11px 14px;
   border: 1.5px solid var(--gris-clair);
@@ -879,11 +879,27 @@ table.admin-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--ardoise-fonce);
-  cursor: pointer;
   user-select: none;
 }
+.admin-table th.th-tri { cursor: pointer; }
+.admin-table th.th-tri:hover { color: var(--rose); }
+.admin-table th .fleche-tri { margin-left: 4px; }
 .admin-table tbody tr:hover { background: var(--menthe); }
 .admin-table .actions { display: flex; gap: 6px; }
+.admin-table th.col-case, .admin-table td.col-case { width: 34px; white-space: nowrap; }
+
+.barre-selection {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--ardoise-fonce);
+  color: var(--blanc);
+  padding: 10px 16px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+}
 
 .admin-barre {
   display: flex;
