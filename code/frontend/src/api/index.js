@@ -74,6 +74,7 @@ const realApi = {
     creerProduit: (b) => http.post('/admin/produits', b).then(data),
     modifierProduit: (id, b) => http.put(`/admin/produits/${id}`, b).then(data),
     supprimerProduit: (id) => http.delete(`/admin/produits/${id}`).then(data),
+    supprimerProduits: (ids) => http.delete('/admin/produits', { data: { ids } }).then(data),
     ajouterPrix: (id, b) => http.post(`/admin/produits/${id}/prix`, b).then(data),
     modifierPrix: (id, b) => http.put(`/admin/prix/${id}`, b).then(data),
     supprimerPrix: (id) => http.delete(`/admin/prix/${id}`).then(data),

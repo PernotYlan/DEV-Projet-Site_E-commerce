@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api';
 import Spinner from '../../components/ui/Spinner';
-import { BarChart, PieChart } from '../../components/admin/Charts';
+import { BarChart, StackedBarChart, PieChart } from '../../components/admin/Charts';
 import { euros } from '../../components/ui/ProductCard';
 
 /** Tableau de bord : cartes KPI, histogramme des ventes, camembert par catégorie. */
@@ -20,6 +20,7 @@ export default function AdminDashboard() {
 
   const { kpi } = stats;
   const titreVentes = periode === '7j' ? 'Ventes des 7 derniers jours' : 'Ventes des 5 dernières semaines';
+  const titrePaniers = periode === '7j' ? 'Paniers moyens par catégorie (7 derniers jours)' : 'Paniers moyens par catégorie (5 dernières semaines)';
 
   return (
     <>
@@ -40,6 +41,11 @@ export default function AdminDashboard() {
 
       <div className="admin-dashboard-charts">
         <BarChart data={stats.ventes} titre={titreVentes} />
+        <StackedBarChart
+          data={stats.paniers_par_categorie.data}
+          categories={stats.paniers_par_categorie.categories}
+          titre={titrePaniers}
+        />
         <PieChart data={stats.ventes_par_categorie} titre="Répartition des ventes par catégorie" />
       </div>
     </>

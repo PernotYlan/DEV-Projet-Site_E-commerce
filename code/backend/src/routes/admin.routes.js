@@ -25,6 +25,11 @@ router.post(
   ]),
   c.creerProduit
 );
+router.delete(
+  '/produits',
+  validate([body('ids').isArray({ min: 1 }).withMessage('Liste d’identifiants requise')]),
+  c.supprimerProduits
+);
 router.get('/produits/:id', validate([entier()]), c.getProduit);
 router.put('/produits/:id', validate([entier()]), c.modifierProduit);
 router.delete('/produits/:id', validate([entier()]), c.supprimerProduit);

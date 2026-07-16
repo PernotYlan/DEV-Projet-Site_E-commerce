@@ -33,17 +33,71 @@ async function dashboardStats(periode = '7j') {
          GROUP BY d ORDER BY d`
       );
 
-  // Répartition des ventes par catégorie (camembert) sur la période
+  // Répartition des ventes par catégorie (camembert) sur la période.
+  // Les lignes de commandes sont pré-filtrées (statut + date) dans un CTE
+  // AVANT la jointure vers Catégories : un simple LEFT JOIN Commandes avec le
+  // filtre dans le ON (comme avant) laisse passer les lignes de commandes
+  // non payées/hors période, puisque SUM(cl.prix_total_ht) porte sur une
+  // colonne de la table jointe plus tôt dans la chaîne, non filtrée elle-même.
   const intervalle = parSemaine ? "INTERVAL '5 weeks'" : "INTERVAL '7 days'";
   const parCategorie = await db.query(
-    `SELECT cat.nom AS label, COALESCE(SUM(cl.prix_total_ht), 0)::float8 AS total
+    `WITH lignes_payees AS (
+       SELECT cl.prix_total_ht, p.categorie_id
+       FROM Commandes_Lignes cl
+       JOIN Produits p ON p.id = cl.produit_id
+       JOIN Commandes c ON c.id = cl.commande_id
+       WHERE c.statut = 'PAIEMENT_ACCEPTE' AND c.cree_le >= NOW() - ${intervalle}
+     )
+     SELECT cat.nom AS label, COALESCE(SUM(l.prix_total_ht), 0)::float8 AS total
      FROM Categories cat
-     LEFT JOIN Produits p ON p.categorie_id = cat.id
-     LEFT JOIN Commandes_Lignes cl ON cl.produit_id = p.id
-     LEFT JOIN Commandes c ON c.id = cl.commande_id
-       AND c.statut = 'PAIEMENT_ACCEPTE' AND c.cree_le >= NOW() - ${intervalle}
+     LEFT JOIN lignes_payees l ON l.categorie_id = cat.id
      GROUP BY cat.nom ORDER BY total DESC`
   );
+
+  // Histogramme multi-couches : panier moyen par catégorie, jour par jour (ou semaine par semaine)
+  const parCategorieParPeriode = parSemaine
+    ? await db.query(
+        `WITH lignes_payees AS (
+           SELECT cl.prix_total_ht, cl.commande_id, p.categorie_id, c.cree_le
+           FROM Commandes_Lignes cl
+           JOIN Produits p ON p.id = cl.produit_id
+           JOIN Commandes c ON c.id = cl.commande_id
+           WHERE c.statut = 'PAIEMENT_ACCEPTE'
+         )
+         SELECT to_char(d, 'YYYY-MM-DD') AS label, cat.nom AS categorie,
+                CASE WHEN COUNT(DISTINCT l.commande_id) = 0 THEN 0
+                     ELSE (SUM(l.prix_total_ht) / COUNT(DISTINCT l.commande_id))::float8 END AS panier_moyen
+         FROM generate_series(date_trunc('week', CURRENT_DATE) - INTERVAL '4 weeks',
+                              date_trunc('week', CURRENT_DATE), INTERVAL '1 week') d
+         CROSS JOIN Categories cat
+         LEFT JOIN lignes_payees l ON l.categorie_id = cat.id AND date_trunc('week', l.cree_le) = d
+         GROUP BY d, cat.nom ORDER BY d, cat.nom`
+      )
+    : await db.query(
+        `WITH lignes_payees AS (
+           SELECT cl.prix_total_ht, cl.commande_id, p.categorie_id, c.cree_le
+           FROM Commandes_Lignes cl
+           JOIN Produits p ON p.id = cl.produit_id
+           JOIN Commandes c ON c.id = cl.commande_id
+           WHERE c.statut = 'PAIEMENT_ACCEPTE'
+         )
+         SELECT to_char(d, 'YYYY-MM-DD') AS label, cat.nom AS categorie,
+                CASE WHEN COUNT(DISTINCT l.commande_id) = 0 THEN 0
+                     ELSE (SUM(l.prix_total_ht) / COUNT(DISTINCT l.commande_id))::float8 END AS panier_moyen
+         FROM generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, INTERVAL '1 day') d
+         CROSS JOIN Categories cat
+         LEFT JOIN lignes_payees l ON l.categorie_id = cat.id AND l.cree_le::date = d::date
+         GROUP BY d, cat.nom ORDER BY d, cat.nom`
+      );
+
+  // Pivote [{label, categorie, panier_moyen}] -> {categories: [...], data: [{label, [categorie]: valeur}]}
+  const categoriesNoms = [...new Set(parCategorieParPeriode.rows.map((r) => r.categorie))];
+  const parLabel = new Map();
+  for (const r of parCategorieParPeriode.rows) {
+    if (!parLabel.has(r.label)) parLabel.set(r.label, { label: r.label });
+    parLabel.get(r.label)[r.categorie] = r.panier_moyen;
+  }
+  const paniersParCategorie = { categories: categoriesNoms, data: [...parLabel.values()] };
 
   // Cartes KPI
   const abosActifs = await db.query("SELECT COUNT(*)::int AS nb FROM Abonnements WHERE statut = 'ACTIF'");
@@ -63,6 +117,7 @@ async function dashboardStats(periode = '7j') {
     periode,
     ventes: ventes.rows,
     ventes_par_categorie: parCategorie.rows,
+    paniers_par_categorie: paniersParCategorie,
     kpi: {
       abonnements_actifs: abosActifs.rows[0].nb,
       nouveaux_utilisateurs_7j: nouveauxUsers.rows[0].nb,

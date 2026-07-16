@@ -32,6 +32,7 @@ import AdminLayout from '../components/admin/AdminLayout';
 import AdminDashboard from '../pages/admin/AdminDashboard';
 import AdminProduits from '../pages/admin/AdminProduits';
 import AdminProduitForm from '../pages/admin/AdminProduitForm';
+import AdminProduitDetail from '../pages/admin/AdminProduitDetail';
 import AdminCategories from '../pages/admin/AdminCategories';
 import AdminUtilisateurs from '../pages/admin/AdminUtilisateurs';
 import AdminCommandes from '../pages/admin/AdminCommandes';
@@ -96,6 +97,7 @@ export default function AppRouter() {
         <Route index element={<AdminDashboard />} />
         <Route path="produits" element={<AdminProduits />} />
         <Route path="produits/nouveau" element={<AdminProduitForm />} />
+        <Route path="produits/:id" element={<AdminProduitDetail />} />
         <Route path="produits/:id/modifier" element={<AdminProduitForm />} />
         <Route path="categories" element={<AdminCategories />} />
         <Route path="utilisateurs" element={<AdminUtilisateurs />} />

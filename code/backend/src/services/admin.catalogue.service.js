@@ -13,6 +13,7 @@ const TRI_PRODUITS = {
   is_active: 'p.is_active',
   cree_le: 'p.cree_le',
   categorie: 'c.nom',
+  prix: 'prix_min',
 };
 
 // ---------- PRODUITS ----------
@@ -64,7 +65,12 @@ async function listerProduits(q) {
 
 /** Détail complet d'un produit (prix + images) pour l'admin. */
 async function getProduit(id) {
-  const res = await db.query('SELECT * FROM Produits WHERE id = $1', [id]);
+  const res = await db.query(
+    `SELECT p.*, c.nom AS categorie_nom
+     FROM Produits p JOIN Categories c ON c.id = p.categorie_id
+     WHERE p.id = $1`,
+    [id]
+  );
   const produit = res.rows[0];
   if (!produit) throw httpError(404, 'Produit introuvable');
   produit.prix = (await db.query('SELECT * FROM Prix WHERE produit_id = $1 ORDER BY type_abonnement', [id])).rows;
@@ -152,6 +158,27 @@ async function supprimerProduit(id) {
     }
     throw err;
   }
+}
+
+/**
+ * Supprime plusieurs produits en une fois (sélection multiple back-office).
+ * Chaque suppression respecte les mêmes règles que supprimerProduit ; les
+ * échecs individuels (ex: abonnements actifs) n'interrompent pas le lot.
+ * @param {Array<number|string>} ids
+ * @returns {Promise<{supprimes: number[], echecs: {id: number, raison: string}[]}>}
+ */
+async function supprimerProduits(ids) {
+  const supprimes = [];
+  const echecs = [];
+  for (const id of ids) {
+    try {
+      await supprimerProduit(id);
+      supprimes.push(Number(id));
+    } catch (err) {
+      echecs.push({ id: Number(id), raison: err.message || 'Suppression impossible' });
+    }
+  }
+  return { supprimes, echecs };
 }
 
 // ---------- PRIX ----------
@@ -365,7 +392,7 @@ async function modifierContenuAccueil(cle, valeur) {
 }
 
 module.exports = {
-  listerProduits, getProduit, creerProduit, modifierProduit, supprimerProduit,
+  listerProduits, getProduit, creerProduit, modifierProduit, supprimerProduit, supprimerProduits,
   ajouterPrix, modifierPrix, supprimerPrix,
   ajouterImage, supprimerImage, reordonnerImages,
   listerCategories, getCategorie, creerCategorie, modifierCategorie, supprimerCategorie, reordonnerCategories,
